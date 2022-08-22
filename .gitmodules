@@ -1,3 +1,9 @@
 [submodule "contrib/poco"]
 	path = contrib/poco
 	url = https://github.com/ClickHouse/poco.git
+[submodule "contrib/lz4"]
+	path = contrib/lz4
+	url = https://github.com/lz4/lz4.git
+[submodule "contrib/zlib-ng"]
+	path = contrib/zlib-ng
+	url = https://github.com/ClickHouse/zlib-ng.git
