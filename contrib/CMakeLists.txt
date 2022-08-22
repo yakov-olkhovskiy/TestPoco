@@ -28,5 +28,6 @@ endfunction()
 
 add_contrib (lz4-cmake lz4)
 add_contrib (zlib-ng-cmake zlib-ng)
+add_contrib (boringssl-cmake boringssl)
 add_contrib (poco-cmake poco)
 

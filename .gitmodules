@@ -7,3 +7,6 @@
 [submodule "contrib/zlib-ng"]
 	path = contrib/zlib-ng
 	url = https://github.com/ClickHouse/zlib-ng.git
+[submodule "contrib/boringssl"]
+	path = contrib/boringssl
+	url = https://github.com/ClickHouse/boringssl.git
