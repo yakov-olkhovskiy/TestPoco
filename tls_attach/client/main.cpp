@@ -9,10 +9,14 @@
 #include "Poco/Exception.h"
 #include "Poco/Net/Context.h"
 #include <Poco/Net/HTTPSClientSession.h>
+#include <Poco/Net/HTTPSession.h>
+#include <Poco/Net/SocketAddress.h>
+#include <Poco/Net/SecureStreamSocket.h>
 #include <iostream>
 
 
 using Poco::Net::HTTPSClientSession;
+using Poco::Net::HTTPClientSession;
 using Poco::Net::HTTPRequest;
 using Poco::Net::HTTPResponse;
 using Poco::Net::HTTPMessage;
@@ -22,10 +26,34 @@ using Poco::URI;
 using Poco::Exception;
 
 
+bool doRequest(Poco::Net::HTTPSClientSession& session, Poco::Net::HTTPRequest& request, Poco::Net::HTTPResponse& response)
+{
+    std::cout << "SUCCESS 1" << std::endl;
+    session.sendRequest(request);
+    std::cout << "SUCCESS 2" << std::endl;
+    std::istream& rs = session.receiveResponse(response);
+    std::cout << response.getStatus() << " " << response.getReason() << std::endl;
+    if (response.getStatus() != Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED)
+    {
+        StreamCopier::copyStream(rs, std::cout);
+        return true;
+    }
+    else
+    {
+        Poco::NullOutputStream null;
+        StreamCopier::copyStream(rs, null);
+        return false;
+    }
+}
+
 bool doRequest(Poco::Net::HTTPClientSession& session, Poco::Net::HTTPRequest& request, Poco::Net::HTTPResponse& response)
 {
+    request.write(std::cout);
+    std::cout << "SUCCESS 1.1" << std::endl;
     session.sendRequest(request);
+    std::cout << "SUCCESS 2.1" << std::endl;
     std::istream& rs = session.receiveResponse(response);
+    std::cout << "SUCCESS 3.1" << std::endl;
     std::cout << response.getStatus() << " " << response.getReason() << std::endl;
     if (response.getStatus() != Poco::Net::HTTPResponse::HTTP_UNAUTHORIZED)
     {
@@ -59,25 +87,76 @@ int main(int argc, char* argv[])
 
         Poco::Net::initializeSSL();
 
-        std::string username;
-        std::string password;
-        Poco::Net::HTTPCredentials::extractCredentials(uri, username, password);
-        Poco::Net::HTTPCredentials credentials(username, password);
-
         Poco::Net::Context::Ptr context ( new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "/etc/ssl/certs") );
+        
+/*
+        Poco::Net::SecureStreamSocket socket(context);
+        socket.setPeerHostName(uri.getHost());
+        HTTPClientSession session(socket);
+        session.setHost(uri.getHost());
+        session.setPort(uri.getPort());
+      //  session.socket().connect({uri.getHost(), uri.getPort()});
 
-        HTTPSClientSession session(uri.getHost(), uri.getPort(), context);
         HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
         HTTPResponse response;
-        if (!doRequest(session, request, response))
+        doRequest(session, request, response);
+*/
+
+/*
+{
+        HTTPClientSession session(uri.getHost());//, uri.getPort());
+        session.socket().connect({uri.getHost(), uri.getPort()});
+
+        HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
+        HTTPResponse response;
+        doRequest(session, request, response);
+return 0;
+}
+*/
+
+        auto get_sec = [](const URI & uri, Poco::Net::Context::Ptr context) {
+            Poco::Net::StreamSocket socket({uri.getHost(), uri.getPort()});
+            return Poco::Net::SecureStreamSocket::attach(socket, uri.getHost(), context);
+        };
+
+        Poco::Net::StreamSocket socket({uri.getHost(), uri.getPort()});
+        Poco::Net::SecureStreamSocket sec_socket = get_sec(uri, context);//Poco::Net::SecureStreamSocket::attach(socket, uri.getHost(), context);
+        HTTPClientSession session(sec_socket);
+
+//        HTTPClientSession session(uri.getHost(), uri.getPort());
+  //      session.socket().connect({uri.getHost(), uri.getPort()});
+   //     Poco::Net::SecureStreamSocket socket = Poco::Net::SecureStreamSocket::attach(session.socket(), uri.getHost(), context);
+
+/*
+        if (!socket.completeHandshake())
         {
-            credentials.authenticate(request, response);
+            std::cerr << "ERROR 1" << std::endl;
+            return 1;
+        } else
+            std::cout << "SUCCESS 1" << std::endl;
+*/
+        HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
+        HTTPResponse response;
+        doRequest(session, request, response);
+
+/*
+        HTTPSClientSession session(uri.getHost(), uri.getPort(), context);
+        std::cout << "SUCCESS 0" << std::endl;
+        HTTPRequest request(HTTPRequest::HTTP_GET, path, HTTPMessage::HTTP_1_1);
+        HTTPResponse response;
+        doRequest(session, request, response);
+*/
+
+/*        if (!doRequest(session, request, response))
+        {
+     //       credentials.authenticate(request, response);
             if (!doRequest(session, request, response))
             {
                 std::cerr << "Invalid username or password" << std::endl;
                 return 1;
             }
         }
+*/
     }
     catch (Exception& exc)
     {
